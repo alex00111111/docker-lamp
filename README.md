@@ -1,77 +1,47 @@
-fauria/lamp
+alex00111111/docker-lamp
 ==========
 
-![docker_logo](https://raw.githubusercontent.com/fauria/docker-lamp/master/docker_139x115.png)![docker_fauria_logo](https://raw.githubusercontent.com/fauria/docker-lamp/master/docker_fauria_161x115.png)
+This Project is forked and inspired from [fauria/lamp](https://github.com/fauria/docker-lamp/).
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/fauria/lamp.svg?style=plastic)](https://hub.docker.com/r/fauria/lamp/)
-[![Docker Build Status](https://img.shields.io/docker/build/fauria/lamp.svg?style=plastic)](https://hub.docker.com/r/fauria/lamp/builds/)
-[![](https://images.microbadger.com/badges/image/fauria/lamp.svg)](https://microbadger.com/images/fauria/lamp "fauria/lamp")
+Main Goal is to build a LAMP-stack for simple semi-dynamic Websites as a monolithic Container. 
 
-This Docker container implements a last generation LAMP stack with a set of popular PHP modules. Includes support for [Composer](https://getcomposer.org/), [Bower](http://bower.io/) and [npm](https://www.npmjs.com/) package managers and a Postfix service to allow sending emails through PHP [mail()](http://php.net/manual/en/function.mail.php) function.
+The Container is static, Database/Filesystem changes on Runtime will be lost on restart.
 
-If you dont need support for MySQL/MariaDB, or your app runs on PHP 5.4, maybe [fauria/lap](https://hub.docker.com/r/fauria/lap) suits your needs better.
+
+Just replace the setup.sql with your datafile and set the link to your WebProject-git (Dockerfile: ENV GITREPO). Customize DB Credentials and Database settings at Dockerfile ENVs ( DATABASE, DATABASE_USER, DATABASE_PW ).
+
+
 
 Includes the following components:
 
- * Ubuntu 16.04 LTS Xenial Xerus base image.
+ * Debian slim latest
  * Apache HTTP Server 2.4
- * MariaDB 10.0
- * Postfix 2.11
- * PHP 7
- * PHP modules
- 	* php-bz2
-	* php-cgi
-	* php-cli
-	* php-common
-	* php-curl
-	* php-dbg
-	* php-dev
-	* php-enchant
-	* php-fpm
-	* php-gd
-	* php-gmp
-	* php-imap
-	* php-interbase
-	* php-intl
-	* php-json
-	* php-ldap
-	* php-mcrypt
-	* php-mysql
-	* php-odbc
-	* php-opcache
-	* php-pgsql
-	* php-phpdbg
-	* php-pspell
-	* php-readline
-	* php-recode
-	* php-snmp
-	* php-sqlite3
-	* php-sybase
-	* php-tidy
-	* php-xmlrpc
-	* php-xsl
- * Development tools
-	* git
-	* composer
-	* npm / nodejs
-	* bower
-	* vim
-	* tree
-	* nano
-	* ftp
-	* curl
+ * MariaDB 10.x
+ * PHP 7.4
+ * git
 
-Installation from [Docker registry hub](https://registry.hub.docker.com/r/fauria/lamp/).
+
+Usage
 ----
 
-You can download the image using the following command:
 
 ```bash
-docker pull fauria/lamp
+# build
+docker build -t docker-lamp . --no-cache=true
+
+# run
+docker run -d -p 8080:80 docker-lamp 
+
+# phpinfo
+curl "http://$(docker-machine ip):8080/info.php"
+
+# example Sql-Connection
+curl "http://$(docker-machine ip):8080/dbexample.php"
+
+# example PHP-Project
+curl "http://$(docker-machine ip):8080/"
 ```
 
-Environment variables
-----
 
 This image uses environment variables to allow the configuration of some parameteres at run time:
 
@@ -116,18 +86,46 @@ This image uses environment variables to allow the configuration of some paramet
 * Accepted values: dumb
 * Description: Allow usage of terminal programs inside the container, such as `mysql` or `nano`.
 
-Exposed port and volumes
 ----
 
-The image exposes ports `80` and `3306`, and exports four volumes:
+* Variable name: DATABASE
+* Default value: testdb
+* Accepted values: any string which is a valid MariaDB Database name
+* Description: set the Database which will be created and where the data from the setup.sql are imported.
 
-* `/var/log/httpd`, containing Apache log files.
-* `/var/log/mysql` containing MariaDB log files.
-* `/var/www/html`, used as Apache's [DocumentRoot directory](http://httpd.apache.org/docs/2.4/en/mod/core.html#documentroot).
-* `/var/lib/mysql`, where MariaDB data files are stored.
-* `/etc/apache2`, where Apache configuration files are stored.
+----
 
-Please, refer to https://docs.docker.com/storage/volumes for more information on using host volumes.
+* Variable name: DATABASE_CHARSET
+* Default value: utf8
+* Accepted values: any supported character set [supported character sets](https://mariadb.com/kb/en/supported-character-sets-and-collations/)
+* Description: set the default character set for the given Database.
+
+----
+
+* Variable name: DATABASE_USER
+* Default value: reader
+* Accepted values: any string which is a valid MariaDB Username
+* Description: set the Username which your PHP files are use for retriving data from MariaDB.
+
+----
+
+* Variable name: DATABASE_PW
+* Default value: testtest
+* Accepted values: any string which is a valid MariaDB password
+* Description: set the password which your PHP files use for retriving data from MariaDB
+
+----
+
+* Variable name: GITREPO
+* Default value: https://github.com/banago/simple-php-website
+* Accepted values: any reachable GIT-Repository via HTTP
+* Description: Link to GIT-Repository which will be deployed at /var/www/html/
+
+
+Exposed port
+----
+
+The image exposes ports `80`:
 
 The user and group owner id for the DocumentRoot directory `/var/www/html` are both 33 (`uid=33(www-data) gid=33(www-data) groups=33(www-data)`).
 
@@ -136,27 +134,16 @@ The user and group owner id for the MariaDB directory `/var/log/mysql` are 105 a
 Use cases
 ----
 
-#### Create a temporary container for testing purposes:
-
-```
-	docker run -i -t --rm fauria/lamp bash
-```
 
 #### Create a temporary container to debug a web app:
 
 ```
-	docker run --rm -p 8080:80 -e LOG_STDOUT=true -e LOG_STDERR=true -e LOG_LEVEL=debug -v /my/data/directory:/var/www/html fauria/lamp
-```
-
-#### Create a container linking to another [MySQL container](https://registry.hub.docker.com/_/mysql/):
-
-```
-	docker run -d --link my-mysql-container:mysql -p 8080:80 -v /my/data/directory:/var/www/html -v /my/logs/directory:/var/log/httpd --name my-lamp-container fauria/lamp
+	docker run --rm -p 8080:80 -e LOG_STDOUT=true -e LOG_STDERR=true -e LOG_LEVEL=debug docker-lamp
 ```
 
 #### Get inside a running container and open a MariaDB console:
 
 ```
-	docker exec -i -t my-lamp-container bash
+	docker exec -i -t docker-lamp bash
 	mysql -u root
 ```

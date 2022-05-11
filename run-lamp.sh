@@ -25,8 +25,8 @@ if [ $LOG_LEVEL != 'warn' ]; then
     /bin/sed -i "s/LogLevel\ warn/LogLevel\ ${LOG_LEVEL}/g" /etc/apache2/apache2.conf
 fi
 
-# enable php short tags:
-/bin/sed -i "s/short_open_tag\ \=\ Off/short_open_tag\ \=\ On/g" /etc/php/7.0/apache2/php.ini
+#remove index.html
+rm /var/www/html/index.html
 
 # stdout server info:
 if [ ! $LOG_STDOUT ]; then
@@ -46,6 +46,12 @@ cat << EOB
     · Log Level [LOG_LEVEL]: $LOG_LEVEL
     · Allow override [ALLOW_OVERRIDE]: $ALLOW_OVERRIDE
     · PHP date timezone [DATE_TIMEZONE]: $DATE_TIMEZONE
+    · MariaDB Database: $DATABASE
+    · MariaDB Database Default Character Set: $DATABASE_CHARSET
+    · MariaDB user: $DATABASE_USER
+    · MariaDB pw: $DATABASE_PW
+    · WebProject Git Url: $GITREPO
+    
 
 EOB
 else
@@ -53,13 +59,28 @@ else
 fi
 
 # Set PHP timezone
-/bin/sed -i "s/\;date\.timezone\ \=/date\.timezone\ \=\ ${DATE_TIMEZONE}/" /etc/php/7.0/apache2/php.ini
+/bin/sed -i "s/\;date\.timezone\ \=/date\.timezone\ \=\ ${DATE_TIMEZONE}/" /etc/php/7.4/apache2/php.ini
 
-# Run Postfix
-/usr/sbin/postfix start
-
+#clone your webproject and move it to /var/www/html/
+mkdir /opt/tmp/
+git clone ${GITREPO} /opt/tmp/
+cp /opt/tmp/* /var/www/html/
+rm /var/www/html/README.md
+rm -r /var/www/html/.git/
+rm /var/www/html/.gitignore
+rm readme.md
+rm -r /opt/tmp
 # Run MariaDB
 /usr/bin/mysqld_safe --timezone=${DATE_TIMEZONE}&
+
+#mariadb create db and user, import data
+sleep 5
+mysql -uroot  -e "CREATE DATABASE ${DATABASE} /*\!40100 DEFAULT CHARACTER SET ${DATABASE_CHARSET} */;"
+mysql -uroot ${DATABASE} < /opt/setup.sql
+mysql -uroot -e 'CREATE USER '${DATABASE_USER}'@localhost IDENTIFIED BY "'${DATABASE_PW}'";'
+mysql -uroot -e "GRANT SELECT on ${DATABASE}.* to ${DATABASE_USER}@localhost;"
+mysql -uroot -e "FLUSH PRIVILEGES;"
+rm /opt/setup.sql
 
 # Run Apache:
 if [ $LOG_LEVEL == 'debug' ]; then
